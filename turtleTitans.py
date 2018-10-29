@@ -1,17 +1,13 @@
 # Turtle Titans
 # Thomas Bailey
 
-# ==========
-# MODULES
-# ==========
 
-# math
 import cmath
 import math
-# random
 import random
-# graphics
+import queue
 import turtle
+from threaded_turtle import ThreadSerializer, TurtleThread
 
 # ===========
 # DEFINITIONS
@@ -27,6 +23,10 @@ start_size = 10
 # ===========
 
 class titan(turtle.Turtle):
+    scale = 10
+    start_speed = 10
+    start_size = 10
+    
     turtle.titans = []
     """ A version of turtle I will use for combat and stuff so it can move """
     def __init__(self, name, x, y, heading, size, sight_range, *args, **kwargs):
@@ -85,7 +85,7 @@ class titan(turtle.Turtle):
                 self.hunting = True
                 return # It's killing time!
 
-    def step(self):
+    def step(self, commander):
         # Angle
         if self.hunting:
             self.direction = self.towards(self.primary.pos())
@@ -94,8 +94,13 @@ class titan(turtle.Turtle):
         else:
             self.direction = random_angle()
             
-        self.seth(self.direction)
-        self.forward(scale+self.size)
+        commander.seth(self.direction)
+        commander.forward(scale+self.size)
+            
+    def start(self, commander):
+        while True:
+            self.think()
+            self.step(commander)
             
 # ===========
 # FUNCTIONS
@@ -116,9 +121,15 @@ stabber = titan("stabber", 0, 50, random_angle(), 1, 200)
 
 # GAME LOOP
 turn = 0
-while True:
-    turn += 1
-    for titan in turtle.titans:
-        if turn % 5 == 0:
-            titan.think()
-        titan.step()
+ctrl = ThreadSerializer()
+threads = []
+for titan in turtle.titans:
+    tt = TurtleThread(ctrl, titan, target = titan.start)
+    tt.daemon = True
+    tt.start()
+for tt in threads:
+    tt.start()
+try:
+    ctrl.run_forever(1)
+except queue.Empty:
+    print('Done')
